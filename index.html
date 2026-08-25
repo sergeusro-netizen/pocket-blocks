@@ -16,7 +16,6 @@
     --ink: #2e3620;
     --accent: #b5432f;
     --accent-dark: #8a3122;
-    --backdrop: #e8e4d9;
 
     --c-i: #4d7c8a;
     --c-o: #c99a3e;
@@ -35,14 +34,13 @@
   }
 
   body {
-    background: var(--backdrop);
+    background: var(--shell);
     color: var(--shell-ink);
     font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     min-height: 100dvh;
-    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
     overflow: hidden;
     touch-action: none;
     user-select: none;
@@ -50,41 +48,43 @@
   }
 
   .device {
-    width: min(420px, 100vw - 16px);
-    height: min(860px, 100dvh - 16px);
-    background: linear-gradient(160deg, var(--shell-light), var(--shell) 55%, var(--shell-dark));
-    border-radius: 34px;
-    padding: 16px 16px 20px;
+    width: 100%;
+    max-width: 620px;
+    height: 100dvh;
+    background: var(--shell);
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.5) inset,
-      0 -6px 14px rgba(0, 0, 0, 0.12) inset,
-      0 18px 40px rgba(58, 53, 44, 0.35);
+    gap: 14px;
   }
 
   .device-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 4px;
+    padding: 2px 2px;
     flex: 0 0 auto;
   }
 
-  .brand {
-    font-family: "Press Start 2P", monospace;
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: var(--shell-ink);
+  .header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
+  .brand {
+    font-family: "Press Start 2P", monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: var(--shell-ink);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
   .brand .led {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08) inset;
@@ -108,11 +108,11 @@
     border: none;
     background: var(--shell-dark);
     color: var(--shell-light);
-    width: 30px;
-    height: 24px;
-    border-radius: 7px;
+    width: 38px;
+    height: 32px;
+    border-radius: 9px;
     font-family: "IBM Plex Mono", monospace;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -125,40 +125,45 @@
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
   }
 
+  .icon-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+
   .screen-frame {
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
     background: var(--shell-dark);
-    border-radius: 16px;
-    padding: 10px;
+    border-radius: 18px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25) inset;
+    gap: 8px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2) inset;
   }
 
   .hud {
     flex: 0 0 auto;
     display: grid;
     grid-template-columns: repeat(3, 1fr) auto;
-    gap: 6px;
+    gap: 8px;
     align-items: stretch;
   }
 
   .hud-block {
     background: var(--screen);
-    border-radius: 6px;
-    padding: 4px 6px;
+    border-radius: 8px;
+    padding: 6px 9px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
   }
 
   .hud-label {
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 1.5px;
     color: var(--screen-deep);
     font-weight: 600;
@@ -166,7 +171,7 @@
 
   .hud-value {
     font-family: "Press Start 2P", monospace;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -176,13 +181,13 @@
 
   .next-block {
     align-items: center;
-    padding: 4px;
+    padding: 6px;
   }
 
   #next {
     display: block;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
   }
 
   .board-wrap {
@@ -193,7 +198,7 @@
     align-items: center;
     justify-content: center;
     background: var(--screen);
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
   }
 
@@ -219,7 +224,7 @@
 
   .overlay h1 {
     font-family: "Press Start 2P", monospace;
-    font-size: 18px;
+    font-size: 22px;
     margin: 0;
     line-height: 1.6;
     text-wrap: balance;
@@ -227,23 +232,23 @@
 
   .overlay p {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.7;
     color: var(--screen);
     opacity: 0.85;
-    max-width: 26ch;
+    max-width: 28ch;
   }
 
   .overlay button {
     appearance: none;
     border: none;
     font-family: "Press Start 2P", monospace;
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 1px;
     color: #fff;
     background: var(--accent);
-    padding: 12px 20px;
-    border-radius: 8px;
+    padding: 14px 24px;
+    border-radius: 9px;
     box-shadow: 0 3px 0 var(--accent-dark);
   }
 
@@ -269,8 +274,8 @@
 
   .dpad {
     position: relative;
-    width: 174px;
-    height: 174px;
+    width: 192px;
+    height: 192px;
     flex: 0 0 auto;
   }
 
@@ -280,7 +285,7 @@
     border: none;
     background: var(--shell-dark);
     color: var(--shell-light);
-    font-size: 21px;
+    font-size: 23px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,25 +298,25 @@
     background: var(--shell);
   }
 
-  .dpad .up    { top: 0;    left: 58px; width: 58px; height: 58px; border-radius: 10px 10px 0 0; }
-  .dpad .left  { top: 58px; left: 0;    width: 58px; height: 58px; border-radius: 10px 0 0 10px; }
-  .dpad .right { top: 58px; left: 116px; width: 58px; height: 58px; border-radius: 0 10px 10px 0; }
-  .dpad .down  { top: 116px; left: 58px; width: 58px; height: 58px; border-radius: 0 0 10px 10px; }
-  .dpad .center{ top: 58px; left: 58px; width: 58px; height: 58px; background: var(--shell); }
+  .dpad .up    { top: 0;    left: 64px; width: 64px; height: 64px; border-radius: 11px 11px 0 0; }
+  .dpad .left  { top: 64px; left: 0;    width: 64px; height: 64px; border-radius: 11px 0 0 11px; }
+  .dpad .right { top: 64px; left: 128px; width: 64px; height: 64px; border-radius: 0 11px 11px 0; }
+  .dpad .down  { top: 128px; left: 64px; width: 64px; height: 64px; border-radius: 0 0 11px 11px; }
+  .dpad .center{ top: 64px; left: 64px; width: 64px; height: 64px; background: var(--shell); }
 
   .action-buttons {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
+    gap: 20px;
   }
 
   .round-btn {
     appearance: none;
     border: none;
-    width: 70px;
-    height: 70px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     font-family: "Press Start 2P", monospace;
     color: #fff;
@@ -323,13 +328,13 @@
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
 
-  .round-btn.a { background: var(--accent); font-size: 10px; box-shadow: 0 4px 0 var(--accent-dark); }
+  .round-btn.a { background: var(--accent); font-size: 11px; box-shadow: 0 4px 0 var(--accent-dark); }
   .round-btn.a:active { box-shadow: 0 1px 0 var(--accent-dark); }
-  .round-btn.b { background: var(--shell-ink); font-size: 10px; box-shadow: 0 4px 0 #1c1912; }
+  .round-btn.b { background: var(--shell-ink); font-size: 11px; box-shadow: 0 4px 0 #1c1912; }
   .round-btn.b:active { box-shadow: 0 1px 0 #1c1912; }
 
   .btn-label {
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 1px;
     color: var(--shell-ink);
     text-align: center;
@@ -338,7 +343,7 @@
 
   .home-hint {
     text-align: center;
-    font-size: 9px;
+    font-size: 10px;
     color: var(--shell-ink);
     opacity: 0.6;
     padding-top: 2px;
@@ -351,7 +356,12 @@
 <div class="device">
   <div class="device-header">
     <span class="brand" id="brand"><span class="led"></span>POCKET BLOCKS</span>
-    <button class="icon-btn" id="pauseBtn" aria-label="Pause">II</button>
+    <div class="header-actions">
+      <button class="icon-btn" id="refreshBtn" aria-label="Refresh page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 1 0 19 15"/><polyline points="20 4 20 11 13 11"/></svg>
+      </button>
+      <button class="icon-btn" id="pauseBtn" aria-label="Pause">II</button>
+    </div>
   </div>
 
   <div class="screen-frame">
@@ -398,6 +408,7 @@
   "use strict";
 
   var COLS = 10, ROWS = 20;
+  var NEXT_SIZE = 52;
 
   var COLORS = {
     I: "#4d7c8a", O: "#c99a3e", T: "#8a5a8c",
@@ -498,6 +509,7 @@
   var overlayText = document.getElementById("overlayText");
   var overlayBtn = document.getElementById("overlayBtn");
   var pauseBtn = document.getElementById("pauseBtn");
+  var refreshBtn = document.getElementById("refreshBtn");
   var brandEl = document.getElementById("brand");
   var homeHint = document.getElementById("homeHint");
 
@@ -677,11 +689,10 @@
     boardCanvas.height = cell * ROWS * dpr;
     boardCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    var nCell = 16;
-    nextCanvas.style.width = "44px";
-    nextCanvas.style.height = "44px";
-    nextCanvas.width = 44 * dpr;
-    nextCanvas.height = 44 * dpr;
+    nextCanvas.style.width = NEXT_SIZE + "px";
+    nextCanvas.style.height = NEXT_SIZE + "px";
+    nextCanvas.width = NEXT_SIZE * dpr;
+    nextCanvas.height = NEXT_SIZE * dpr;
     nextCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     render();
@@ -756,11 +767,11 @@
   }
 
   function drawNext() {
-    nextCtx.clearRect(0, 0, 44, 44);
+    nextCtx.clearRect(0, 0, NEXT_SIZE, NEXT_SIZE);
     if (!state.next) return;
     var cells = cellsFor(state.next, 0);
     var size = SHAPES[state.next].size;
-    var cell = 44 / (size + 1);
+    var cell = NEXT_SIZE / (size + 1);
     var minX = Math.min.apply(null, cells.map(function (c) { return c.x; }));
     var maxX = Math.max.apply(null, cells.map(function (c) { return c.x; }));
     var minY = Math.min.apply(null, cells.map(function (c) { return c.y; }));
@@ -846,6 +857,10 @@
     startGame();
   });
   pauseBtn.addEventListener("click", togglePause);
+
+  refreshBtn.addEventListener("click", function () {
+    window.location.href = window.location.pathname + "?t=" + Date.now();
+  });
 
   var audioCtx = null;
 
