@@ -1,0 +1,906 @@
+<meta charset="UTF-8">
+<title>Pocket Blocks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --shell: #b9b2a0;
+    --shell-light: #d3cdbd;
+    --shell-dark: #8f8874;
+    --shell-ink: #3a352c;
+    --screen: #9caa7c;
+    --screen-deep: #5c6b46;
+    --screen-grid: rgba(46, 54, 32, 0.16);
+    --ink: #2e3620;
+    --accent: #b5432f;
+    --accent-dark: #8a3122;
+    --backdrop: #e8e4d9;
+
+    --c-i: #4d7c8a;
+    --c-o: #c99a3e;
+    --c-t: #8a5a8c;
+    --c-s: #5f8f5a;
+    --c-z: #b5432f;
+    --c-j: #4d6a9a;
+    --c-l: #c07a3e;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--backdrop);
+    color: var(--shell-ink);
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .device {
+    width: min(420px, 100vw - 16px);
+    height: min(860px, 100dvh - 16px);
+    background: linear-gradient(160deg, var(--shell-light), var(--shell) 55%, var(--shell-dark));
+    border-radius: 34px;
+    padding: 16px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 -6px 14px rgba(0, 0, 0, 0.12) inset,
+      0 18px 40px rgba(58, 53, 44, 0.35);
+  }
+
+  .device-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px;
+    flex: 0 0 auto;
+  }
+
+  .brand {
+    font-family: "Press Start 2P", monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--shell-ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .brand .led {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08) inset;
+  }
+
+  .brand.playing .led {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand.playing .led { animation: none; }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .icon-btn {
+    appearance: none;
+    border: none;
+    background: var(--shell-dark);
+    color: var(--shell-light);
+    width: 30px;
+    height: 24px;
+    border-radius: 7px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  .icon-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  .screen-frame {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: var(--shell-dark);
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25) inset;
+  }
+
+  .hud {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .hud-block {
+    background: var(--screen);
+    border-radius: 6px;
+    padding: 4px 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .hud-label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--screen-deep);
+    font-weight: 600;
+  }
+
+  .hud-value {
+    font-family: "Press Start 2P", monospace;
+    font-size: 13px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .next-block {
+    align-items: center;
+    padding: 4px;
+  }
+
+  #next {
+    display: block;
+    width: 44px;
+    height: 44px;
+  }
+
+  .board-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--screen);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  #board {
+    display: block;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(46, 54, 32, 0.82);
+    color: var(--screen);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .overlay[hidden] { display: none; }
+
+  .overlay h1 {
+    font-family: "Press Start 2P", monospace;
+    font-size: 18px;
+    margin: 0;
+    line-height: 1.6;
+    text-wrap: balance;
+  }
+
+  .overlay p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--screen);
+    opacity: 0.85;
+    max-width: 26ch;
+  }
+
+  .overlay button {
+    appearance: none;
+    border: none;
+    font-family: "Press Start 2P", monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #fff;
+    background: var(--accent);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 3px 0 var(--accent-dark);
+  }
+
+  .overlay button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--accent-dark);
+  }
+
+  .hint {
+    font-size: 9px;
+    opacity: 0.7;
+    letter-spacing: 0.5px;
+  }
+
+  .controls {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 0;
+    gap: 10px;
+  }
+
+  .dpad {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    flex: 0 0 auto;
+  }
+
+  .dpad button {
+    position: absolute;
+    appearance: none;
+    border: none;
+    background: var(--shell-dark);
+    color: var(--shell-light);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .dpad button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+    background: var(--shell);
+  }
+
+  .dpad .up    { top: 0;    left: 44px; width: 44px; height: 44px; border-radius: 8px 8px 0 0; }
+  .dpad .left  { top: 44px; left: 0;    width: 44px; height: 44px; border-radius: 8px 0 0 8px; }
+  .dpad .right { top: 44px; left: 88px; width: 44px; height: 44px; border-radius: 0 8px 8px 0; }
+  .dpad .down  { top: 88px; left: 44px; width: 44px; height: 44px; border-radius: 0 0 8px 8px; }
+  .dpad .center{ top: 44px; left: 44px; width: 44px; height: 44px; background: var(--shell); }
+
+  .action-buttons {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .round-btn {
+    appearance: none;
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-family: "Press Start 2P", monospace;
+    color: #fff;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .round-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .round-btn.a { background: var(--accent); font-size: 9px; box-shadow: 0 4px 0 var(--accent-dark); }
+  .round-btn.a:active { box-shadow: 0 1px 0 var(--accent-dark); }
+  .round-btn.b { background: var(--shell-ink); font-size: 9px; box-shadow: 0 4px 0 #1c1912; }
+  .round-btn.b:active { box-shadow: 0 1px 0 #1c1912; }
+
+  .btn-label {
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--shell-ink);
+    text-align: center;
+    margin-top: -8px;
+  }
+
+  .home-hint {
+    text-align: center;
+    font-size: 9px;
+    color: var(--shell-ink);
+    opacity: 0.6;
+    padding-top: 2px;
+    flex: 0 0 auto;
+  }
+
+  .home-hint[hidden] { display: none; }
+</style>
+
+<div class="device">
+  <div class="device-header">
+    <span class="brand" id="brand"><span class="led"></span>POCKET BLOCKS</span>
+    <button class="icon-btn" id="pauseBtn" aria-label="Pause">II</button>
+  </div>
+
+  <div class="screen-frame">
+    <div class="hud">
+      <div class="hud-block"><span class="hud-label">SCORE</span><span class="hud-value" id="score">0</span></div>
+      <div class="hud-block"><span class="hud-label">LINES</span><span class="hud-value" id="lines">0</span></div>
+      <div class="hud-block"><span class="hud-label">LEVEL</span><span class="hud-value" id="level">1</span></div>
+      <div class="hud-block next-block"><span class="hud-label">NEXT</span><canvas id="next"></canvas></div>
+    </div>
+
+    <div class="board-wrap">
+      <canvas id="board"></canvas>
+      <div class="overlay" id="overlay">
+        <h1 id="overlayTitle">POCKET<br>BLOCKS</h1>
+        <p id="overlayText">A handheld-style falling-block puzzle. Use the D-pad and buttons below to play.</p>
+        <button id="overlayBtn">START</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="dpad">
+      <button class="up" data-action="rotate" aria-label="Rotate">⟳</button>
+      <button class="left" data-action="left" aria-label="Move left">◀</button>
+      <button class="center" tabindex="-1"></button>
+      <button class="right" data-action="right" aria-label="Move right">▶</button>
+      <button class="down" data-action="down" aria-label="Soft drop">▼</button>
+    </div>
+    <div class="action-buttons">
+      <div>
+        <button class="round-btn a" data-action="drop" aria-label="Hard drop">DROP</button>
+      </div>
+      <div>
+        <button class="round-btn b" data-action="pause" aria-label="Pause">II</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-hint" id="homeHint">Tip: Share ▸ Add to Home Screen for full-screen play</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLS = 10, ROWS = 20;
+
+  var COLORS = {
+    I: "#4d7c8a", O: "#c99a3e", T: "#8a5a8c",
+    S: "#5f8f5a", Z: "#b5432f", J: "#4d6a9a", L: "#c07a3e"
+  };
+
+  var SHAPES = {
+    I: { size: 4, rotations: [
+      ["....", "XXXX", "....", "...."],
+      ["..X.", "..X.", "..X.", "..X."],
+      ["....", "....", "XXXX", "...."],
+      [".X..", ".X..", ".X..", ".X.."]
+    ]},
+    O: { size: 2, rotations: [["XX", "XX"], ["XX", "XX"], ["XX", "XX"], ["XX", "XX"]] },
+    T: { size: 3, rotations: [
+      [".X.", "XXX", "..."],
+      [".X.", ".XX", ".X."],
+      ["...", "XXX", ".X."],
+      [".X.", "XX.", ".X."]
+    ]},
+    S: { size: 3, rotations: [
+      [".XX", "XX.", "..."],
+      [".X.", ".XX", "..X"],
+      ["...", ".XX", "XX."],
+      ["X..", "XX.", ".X."]
+    ]},
+    Z: { size: 3, rotations: [
+      ["XX.", ".XX", "..."],
+      ["..X", ".XX", ".X."],
+      ["...", "XX.", ".XX"],
+      [".X.", "XX.", "X.."]
+    ]},
+    J: { size: 3, rotations: [
+      ["X..", "XXX", "..."],
+      [".XX", ".X.", ".X."],
+      ["...", "XXX", "..X"],
+      [".X.", ".X.", "XX."]
+    ]},
+    L: { size: 3, rotations: [
+      ["..X", "XXX", "..."],
+      [".X.", ".X.", ".XX"],
+      ["...", "XXX", "X.."],
+      ["XX.", ".X.", ".X."]
+    ]}
+  };
+
+  var TYPES = Object.keys(SHAPES);
+
+  function cellsFor(type, rot) {
+    var grid = SHAPES[type].rotations[rot];
+    var out = [];
+    for (var y = 0; y < grid.length; y++) {
+      for (var x = 0; x < grid[y].length; x++) {
+        if (grid[y][x] === "X") out.push({ x: x, y: y });
+      }
+    }
+    return out;
+  }
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = clamp(((n >> 16) & 255) + amt, 0, 255);
+    var g = clamp(((n >> 8) & 255) + amt, 0, 255);
+    var b = clamp((n & 255) + amt, 0, 255);
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function newBag() {
+    var bag = TYPES.slice();
+    for (var i = bag.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+    }
+    return bag;
+  }
+
+  var boardCanvas = document.getElementById("board");
+  var boardCtx = boardCanvas.getContext("2d");
+  var nextCanvas = document.getElementById("next");
+  var nextCtx = nextCanvas.getContext("2d");
+  var scoreEl = document.getElementById("score");
+  var linesEl = document.getElementById("lines");
+  var levelEl = document.getElementById("level");
+  var overlay = document.getElementById("overlay");
+  var overlayTitle = document.getElementById("overlayTitle");
+  var overlayText = document.getElementById("overlayText");
+  var overlayBtn = document.getElementById("overlayBtn");
+  var pauseBtn = document.getElementById("pauseBtn");
+  var brandEl = document.getElementById("brand");
+  var homeHint = document.getElementById("homeHint");
+
+  if (window.navigator.standalone) homeHint.hidden = true;
+
+  var state = {
+    board: makeMatrix(),
+    bag: [],
+    piece: null,
+    next: null,
+    score: 0,
+    lines: 0,
+    level: 1,
+    dropInterval: 900,
+    dropCounter: 0,
+    lastTime: 0,
+    running: false,
+    paused: false,
+    over: false,
+    cell: 20
+  };
+
+  function makeMatrix() {
+    var m = [];
+    for (var y = 0; y < ROWS; y++) m.push(new Array(COLS).fill(null));
+    return m;
+  }
+
+  function drawFrom(bag) {
+    if (bag.length === 0) return null;
+    return bag.shift();
+  }
+
+  function nextType() {
+    if (state.bag.length === 0) state.bag = newBag();
+    return drawFrom(state.bag);
+  }
+
+  function spawnPiece(type) {
+    var size = SHAPES[type].size;
+    return {
+      type: type,
+      rot: 0,
+      x: Math.floor((COLS - size) / 2),
+      y: type === "I" ? -1 : 0,
+      size: size
+    };
+  }
+
+  function collides(piece, offX, offY, rot) {
+    var cells = cellsFor(piece.type, rot);
+    for (var i = 0; i < cells.length; i++) {
+      var x = piece.x + cells[i].x + offX;
+      var y = piece.y + cells[i].y + offY;
+      if (x < 0 || x >= COLS || y >= ROWS) return true;
+      if (y >= 0 && state.board[y][x]) return true;
+    }
+    return false;
+  }
+
+  function lockPiece() {
+    var cells = cellsFor(state.piece.type, state.piece.rot);
+    for (var i = 0; i < cells.length; i++) {
+      var x = state.piece.x + cells[i].x;
+      var y = state.piece.y + cells[i].y;
+      if (y >= 0) state.board[y][x] = state.piece.type;
+    }
+    clearLines();
+    advancePiece();
+  }
+
+  function clearLines() {
+    var cleared = 0;
+    for (var y = ROWS - 1; y >= 0; y--) {
+      if (state.board[y].every(function (c) { return c; })) {
+        state.board.splice(y, 1);
+        state.board.unshift(new Array(COLS).fill(null));
+        cleared++;
+        y++;
+      }
+    }
+    if (cleared > 0) {
+      var table = [0, 100, 300, 500, 800];
+      state.score += table[cleared] * state.level;
+      state.lines += cleared;
+      var newLevel = Math.floor(state.lines / 10) + 1;
+      if (newLevel !== state.level) {
+        state.level = newLevel;
+        state.dropInterval = Math.max(110, 900 - (state.level - 1) * 70);
+      }
+      updateHud();
+    }
+  }
+
+  function advancePiece() {
+    var type = state.next || nextType();
+    state.piece = spawnPiece(type);
+    state.next = nextType();
+    drawNext();
+    if (collides(state.piece, 0, 0, state.piece.rot)) {
+      endGame();
+    }
+  }
+
+  function move(dx, dy) {
+    if (!state.piece || state.over || state.paused) return false;
+    if (!collides(state.piece, dx, dy, state.piece.rot)) {
+      state.piece.x += dx;
+      state.piece.y += dy;
+      return true;
+    }
+    return false;
+  }
+
+  var KICKS = [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, -1]];
+
+  function rotate(dir) {
+    if (!state.piece || state.over || state.paused) return;
+    var newRot = (state.piece.rot + dir + 4) % 4;
+    for (var i = 0; i < KICKS.length; i++) {
+      var k = KICKS[i];
+      if (!collides(state.piece, k[0], k[1], newRot)) {
+        state.piece.x += k[0];
+        state.piece.y += k[1];
+        state.piece.rot = newRot;
+        return;
+      }
+    }
+  }
+
+  function softDrop() {
+    if (move(0, 1)) {
+      state.score += 1;
+      updateHud();
+      state.dropCounter = 0;
+    } else {
+      lockPiece();
+    }
+  }
+
+  function hardDrop() {
+    if (!state.piece || state.over || state.paused) return;
+    var dist = 0;
+    while (!collides(state.piece, 0, 1, state.piece.rot)) {
+      state.piece.y += 1;
+      dist++;
+    }
+    state.score += dist * 2;
+    updateHud();
+    lockPiece();
+    state.dropCounter = 0;
+  }
+
+  function ghostY() {
+    var gy = state.piece.y;
+    while (!collides(state.piece, 0, gy - state.piece.y + 1, state.piece.rot)) gy++;
+    return gy;
+  }
+
+  function updateHud() {
+    scoreEl.textContent = state.score;
+    linesEl.textContent = state.lines;
+    levelEl.textContent = state.level;
+  }
+
+  function resize() {
+    var wrap = boardCanvas.parentElement;
+    var availW = wrap.clientWidth;
+    var availH = wrap.clientHeight;
+    var cell = Math.floor(Math.min(availW / COLS, availH / ROWS));
+    cell = Math.max(8, cell);
+    state.cell = cell;
+    var dpr = window.devicePixelRatio || 1;
+    boardCanvas.style.width = (cell * COLS) + "px";
+    boardCanvas.style.height = (cell * ROWS) + "px";
+    boardCanvas.width = cell * COLS * dpr;
+    boardCanvas.height = cell * ROWS * dpr;
+    boardCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var nCell = 16;
+    nextCanvas.style.width = "44px";
+    nextCanvas.style.height = "44px";
+    nextCanvas.width = 44 * dpr;
+    nextCanvas.height = 44 * dpr;
+    nextCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    render();
+  }
+
+  function drawBlock(ctx, gx, gy, cell, color) {
+    var px = gx * cell, py = gy * cell;
+    var pad = Math.max(1, cell * 0.07);
+    var w = cell - pad * 2;
+    var grad = ctx.createLinearGradient(px, py, px, py + cell);
+    grad.addColorStop(0, shade(color, 26));
+    grad.addColorStop(1, shade(color, -18));
+    ctx.fillStyle = grad;
+    roundRect(ctx, px + pad, py + pad, w, w, cell * 0.16);
+    ctx.fill();
+    ctx.strokeStyle = shade(color, -38);
+    ctx.lineWidth = Math.max(1, cell * 0.05);
+    ctx.stroke();
+  }
+
+  function drawGhost(ctx, gx, gy, cell, color) {
+    var px = gx * cell, py = gy * cell;
+    var pad = Math.max(1, cell * 0.1);
+    ctx.save();
+    ctx.strokeStyle = shade(color, -10);
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = Math.max(1, cell * 0.08);
+    ctx.setLineDash([cell * 0.18, cell * 0.12]);
+    roundRect(ctx, px + pad, py + pad, cell - pad * 2, cell - pad * 2, cell * 0.14);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function render() {
+    var cell = state.cell;
+    var w = COLS * cell, h = ROWS * cell;
+    boardCtx.clearRect(0, 0, w, h);
+
+    boardCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--screen-grid");
+    for (var y = 0; y < ROWS; y++) {
+      for (var x = 0; x < COLS; x++) {
+        boardCtx.beginPath();
+        boardCtx.arc(x * cell + cell / 2, y * cell + cell / 2, Math.max(1, cell * 0.05), 0, Math.PI * 2);
+        boardCtx.fill();
+      }
+    }
+
+    for (var yy = 0; yy < ROWS; yy++) {
+      for (var xx = 0; xx < COLS; xx++) {
+        var t = state.board[yy][xx];
+        if (t) drawBlock(boardCtx, xx, yy, cell, COLORS[t]);
+      }
+    }
+
+    if (state.piece && !state.over) {
+      var gy = ghostY();
+      var cells = cellsFor(state.piece.type, state.piece.rot);
+      var i;
+      if (gy !== state.piece.y) {
+        for (i = 0; i < cells.length; i++) {
+          drawGhost(boardCtx, state.piece.x + cells[i].x, gy + cells[i].y, cell, COLORS[state.piece.type]);
+        }
+      }
+      for (i = 0; i < cells.length; i++) {
+        var px = state.piece.x + cells[i].x;
+        var py = state.piece.y + cells[i].y;
+        if (py >= 0) drawBlock(boardCtx, px, py, cell, COLORS[state.piece.type]);
+      }
+    }
+
+    drawNext();
+  }
+
+  function drawNext() {
+    nextCtx.clearRect(0, 0, 44, 44);
+    if (!state.next) return;
+    var cells = cellsFor(state.next, 0);
+    var size = SHAPES[state.next].size;
+    var cell = 44 / (size + 1);
+    var minX = Math.min.apply(null, cells.map(function (c) { return c.x; }));
+    var maxX = Math.max.apply(null, cells.map(function (c) { return c.x; }));
+    var minY = Math.min.apply(null, cells.map(function (c) { return c.y; }));
+    var maxY = Math.max.apply(null, cells.map(function (c) { return c.y; }));
+    var offX = (size - (maxX - minX + 1)) / 2 - minX;
+    var offY = (size - (maxY - minY + 1)) / 2 - minY;
+    for (var i = 0; i < cells.length; i++) {
+      drawBlock(nextCtx, cells[i].x + offX, cells[i].y + offY, cell, COLORS[state.next]);
+    }
+  }
+
+  function tick(time) {
+    if (!state.running) return;
+    if (!state.paused && !state.over) {
+      var dt = time - state.lastTime;
+      state.dropCounter += dt;
+      if (state.dropCounter > state.dropInterval) {
+        state.dropCounter = 0;
+        if (!move(0, 1)) lockPiece();
+      }
+      render();
+    }
+    state.lastTime = time;
+    requestAnimationFrame(tick);
+  }
+
+  function showOverlay(title, text, btnLabel) {
+    overlayTitle.innerHTML = title;
+    overlayText.textContent = text;
+    overlayBtn.textContent = btnLabel;
+    overlay.hidden = false;
+  }
+
+  function hideOverlay() {
+    overlay.hidden = true;
+  }
+
+  function startGame() {
+    state.board = makeMatrix();
+    state.bag = [];
+    state.score = 0;
+    state.lines = 0;
+    state.level = 1;
+    state.dropInterval = 900;
+    state.dropCounter = 0;
+    state.over = false;
+    state.paused = false;
+    state.next = nextType();
+    advancePiece();
+    updateHud();
+    hideOverlay();
+    brandEl.classList.add("playing");
+    pauseBtn.textContent = "II";
+    if (!state.running) {
+      state.running = true;
+      state.lastTime = performance.now();
+      requestAnimationFrame(tick);
+    }
+  }
+
+  function togglePause() {
+    if (state.over || !state.piece) return;
+    state.paused = !state.paused;
+    if (state.paused) {
+      brandEl.classList.remove("playing");
+      showOverlay("PAUSED", "Tap resume to keep stacking.", "RESUME");
+    } else {
+      brandEl.classList.add("playing");
+      hideOverlay();
+      state.lastTime = performance.now();
+    }
+  }
+
+  function endGame() {
+    state.over = true;
+    brandEl.classList.remove("playing");
+    showOverlay("GAME<br>OVER", "Score " + state.score + " · " + state.lines + " lines", "PLAY AGAIN");
+  }
+
+  overlayBtn.addEventListener("click", function () {
+    if (state.paused) { togglePause(); return; }
+    startGame();
+  });
+  pauseBtn.addEventListener("click", togglePause);
+
+  var REPEAT_ACTIONS = { left: true, right: true, down: true };
+  var held = {};
+
+  function doAction(action) {
+    switch (action) {
+      case "left": move(-1, 0); render(); break;
+      case "right": move(1, 0); render(); break;
+      case "down": softDrop(); render(); break;
+      case "rotate": rotate(1); render(); break;
+      case "drop": hardDrop(); break;
+      case "pause": togglePause(); break;
+    }
+  }
+
+  document.querySelectorAll("[data-action]").forEach(function (btn) {
+    var action = btn.getAttribute("data-action");
+    btn.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      if (state.over || (state.paused && action !== "pause")) {
+        if (action === "pause") togglePause();
+        return;
+      }
+      doAction(action);
+      if (REPEAT_ACTIONS[action]) {
+        clearTimeout(held.timeout);
+        clearInterval(held.interval);
+        held.timeout = setTimeout(function () {
+          held.interval = setInterval(function () { doAction(action); }, 60);
+        }, 220);
+      }
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(function (evt) {
+      btn.addEventListener(evt, function () {
+        clearTimeout(held.timeout);
+        clearInterval(held.interval);
+      });
+    });
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var map = { ArrowLeft: "left", ArrowRight: "right", ArrowDown: "down", ArrowUp: "rotate", " ": "drop", p: "pause", P: "pause" };
+    var action = map[e.key];
+    if (!action) return;
+    e.preventDefault();
+    if (state.over) return;
+    if (state.paused && action !== "pause") return;
+    doAction(action);
+  });
+
+  document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", function () { setTimeout(resize, 100); });
+
+  resize();
+  showOverlay("POCKET<br>BLOCKS", "A handheld-style falling-block puzzle. Use the D-pad and buttons below to play.", "START");
+})();
+</script>
