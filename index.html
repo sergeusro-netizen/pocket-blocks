@@ -269,8 +269,8 @@
 
   .dpad {
     position: relative;
-    width: 132px;
-    height: 132px;
+    width: 174px;
+    height: 174px;
     flex: 0 0 auto;
   }
 
@@ -280,7 +280,7 @@
     border: none;
     background: var(--shell-dark);
     color: var(--shell-light);
-    font-size: 16px;
+    font-size: 21px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,25 +293,25 @@
     background: var(--shell);
   }
 
-  .dpad .up    { top: 0;    left: 44px; width: 44px; height: 44px; border-radius: 8px 8px 0 0; }
-  .dpad .left  { top: 44px; left: 0;    width: 44px; height: 44px; border-radius: 8px 0 0 8px; }
-  .dpad .right { top: 44px; left: 88px; width: 44px; height: 44px; border-radius: 0 8px 8px 0; }
-  .dpad .down  { top: 88px; left: 44px; width: 44px; height: 44px; border-radius: 0 0 8px 8px; }
-  .dpad .center{ top: 44px; left: 44px; width: 44px; height: 44px; background: var(--shell); }
+  .dpad .up    { top: 0;    left: 58px; width: 58px; height: 58px; border-radius: 10px 10px 0 0; }
+  .dpad .left  { top: 58px; left: 0;    width: 58px; height: 58px; border-radius: 10px 0 0 10px; }
+  .dpad .right { top: 58px; left: 116px; width: 58px; height: 58px; border-radius: 0 10px 10px 0; }
+  .dpad .down  { top: 116px; left: 58px; width: 58px; height: 58px; border-radius: 0 0 10px 10px; }
+  .dpad .center{ top: 58px; left: 58px; width: 58px; height: 58px; background: var(--shell); }
 
   .action-buttons {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 18px;
   }
 
   .round-btn {
     appearance: none;
     border: none;
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     font-family: "Press Start 2P", monospace;
     color: #fff;
@@ -323,9 +323,9 @@
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
 
-  .round-btn.a { background: var(--accent); font-size: 9px; box-shadow: 0 4px 0 var(--accent-dark); }
+  .round-btn.a { background: var(--accent); font-size: 10px; box-shadow: 0 4px 0 var(--accent-dark); }
   .round-btn.a:active { box-shadow: 0 1px 0 var(--accent-dark); }
-  .round-btn.b { background: var(--shell-ink); font-size: 9px; box-shadow: 0 4px 0 #1c1912; }
+  .round-btn.b { background: var(--shell-ink); font-size: 10px; box-shadow: 0 4px 0 #1c1912; }
   .round-btn.b:active { box-shadow: 0 1px 0 #1c1912; }
 
   .btn-label {
@@ -841,21 +841,59 @@
   }
 
   overlayBtn.addEventListener("click", function () {
+    ensureAudio();
     if (state.paused) { togglePause(); return; }
     startGame();
   });
   pauseBtn.addEventListener("click", togglePause);
+
+  var audioCtx = null;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function beep(freq, dur, type, vol, glideTo) {
+    if (!audioCtx) return;
+    var t0 = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = type || "square";
+    osc.frequency.setValueAtTime(freq, t0);
+    if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, t0 + dur);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol, t0 + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  }
+
+  function sndMove() { beep(180, 0.045, "square", 0.11); }
+  function sndRotate() { beep(300, 0.03, "square", 0.11); beep(440, 0.05, "square", 0.11); }
+  function sndDrop() { beep(220, 0.14, "square", 0.16, 55); }
 
   var REPEAT_ACTIONS = { left: true, right: true, down: true };
   var held = {};
 
   function doAction(action) {
     switch (action) {
-      case "left": move(-1, 0); render(); break;
-      case "right": move(1, 0); render(); break;
+      case "left": if (move(-1, 0)) sndMove(); render(); break;
+      case "right": if (move(1, 0)) sndMove(); render(); break;
       case "down": softDrop(); render(); break;
-      case "rotate": rotate(1); render(); break;
-      case "drop": hardDrop(); break;
+      case "rotate":
+        var prevRot = state.piece ? state.piece.rot : null;
+        var prevX = state.piece ? state.piece.x : null;
+        rotate(1);
+        if (state.piece && (state.piece.rot !== prevRot || state.piece.x !== prevX)) sndRotate();
+        render();
+        break;
+      case "drop": sndDrop(); hardDrop(); break;
       case "pause": togglePause(); break;
     }
   }
@@ -864,6 +902,7 @@
     var action = btn.getAttribute("data-action");
     btn.addEventListener("pointerdown", function (e) {
       e.preventDefault();
+      ensureAudio();
       if (state.over || (state.paused && action !== "pause")) {
         if (action === "pause") togglePause();
         return;
@@ -890,6 +929,7 @@
     var action = map[e.key];
     if (!action) return;
     e.preventDefault();
+    ensureAudio();
     if (state.over) return;
     if (state.paused && action !== "pause") return;
     doAction(action);
