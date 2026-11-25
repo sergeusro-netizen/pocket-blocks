@@ -6,12 +6,33 @@
 // GET  /api/leaderboard  ?limit=10                      -> top players by best score
 
 const ALLOWED_ORIGINS = [
-  "https://sergeusro-netizen.github.io",
   "https://games.herman.company",
 ];
 const PBKDF2_ITERATIONS = 100000;
+
+// PIN guessing limits.
+// Per name: 5 wrong PINs locks the name. The first lock is 15 minutes and
+// each lock after that doubles (15m, 30m, 1h, 2h ... up to 24h), until the
+// right PIN is entered. That caps a guesser at roughly 5 tries a day, so
+// working through 10,000 PINs would take years.
 const MAX_FAILS = 5;
-const LOCK_MS = 15 * 60 * 1000;
+const LOCK_BASE_MS = 15 * 60 * 1000;
+const LOCK_MAX_MS = 24 * 60 * 60 * 1000;
+// Per device/network (IP): at most 20 wrong PINs an hour across all names,
+// so nobody can spread guesses over many names.
+const IP_MAX_FAILS = 20;
+const IP_WINDOW_MS = 60 * 60 * 1000;
+
+function lockDuration(lockouts) {
+  return Math.min(LOCK_MAX_MS, LOCK_BASE_MS * Math.pow(2, Math.max(0, lockouts - 1)));
+}
+
+function waitText(ms) {
+  const mins = Math.ceil(ms / 60000);
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"}`;
+  const hours = Math.ceil(mins / 60);
+  return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "";
@@ -124,25 +145,43 @@ async function login(request, env) {
   }
 
   if (existing.locked_until > now) {
-    const mins = Math.ceil((existing.locked_until - now) / 60000);
-    return json(request, 429, { error: `Too many wrong PINs. Try again in ${mins} minute${mins === 1 ? "" : "s"}.` });
+    return json(request, 429, { error: `Too many wrong PINs for this name. Try again in ${waitText(existing.locked_until - now)}.` });
+  }
+
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ipRow = await env.DB.prepare("SELECT fails, window_start FROM ip_fails WHERE ip = ?").bind(ip).first();
+  const ipFails = ipRow && now - ipRow.window_start < IP_WINDOW_MS ? ipRow.fails : 0;
+  if (ipFails >= IP_MAX_FAILS) {
+    return json(request, 429, { error: `Too many wrong PINs from this device. Try again in ${waitText(ipRow.window_start + IP_WINDOW_MS - now)}.` });
   }
 
   const pinHash = await hashPin(pin, existing.salt);
   if (!safeEqual(pinHash, existing.pin_hash)) {
+    const ipStmt = ipFails === 0
+      ? env.DB.prepare("INSERT INTO ip_fails (ip, fails, window_start) VALUES (?, 1, ?) ON CONFLICT(ip) DO UPDATE SET fails = 1, window_start = excluded.window_start").bind(ip, now)
+      : env.DB.prepare("UPDATE ip_fails SET fails = fails + 1 WHERE ip = ?").bind(ip);
+
     const fails = existing.fails + 1;
-    const lockedUntil = fails >= MAX_FAILS ? now + LOCK_MS : 0;
-    await env.DB.prepare("UPDATE players SET fails = ?, locked_until = ? WHERE name_key = ?")
-      .bind(fails >= MAX_FAILS ? 0 : fails, lockedUntil, nameKey).run();
+    if (fails >= MAX_FAILS) {
+      const lockouts = existing.lockouts + 1;
+      const wait = lockDuration(lockouts);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE players SET fails = 0, lockouts = ?, locked_until = ? WHERE name_key = ?").bind(lockouts, now + wait, nameKey),
+        ipStmt,
+      ]);
+      return json(request, 429, { error: `Too many wrong PINs. This name is locked for ${waitText(wait)}.` });
+    }
+    await env.DB.batch([
+      env.DB.prepare("UPDATE players SET fails = ? WHERE name_key = ?").bind(fails, nameKey),
+      ipStmt,
+    ]);
     return json(request, 401, {
-      error: fails >= MAX_FAILS
-        ? "Too many wrong PINs. Try again in 15 minutes."
-        : `That name is taken and the PIN doesn't match. ${MAX_FAILS - fails} tries left.`,
+      error: `That name is taken and the PIN doesn't match. ${MAX_FAILS - fails} ${MAX_FAILS - fails === 1 ? "try" : "tries"} left.`,
     });
   }
 
-  if (existing.fails) {
-    await env.DB.prepare("UPDATE players SET fails = 0 WHERE name_key = ?").bind(nameKey).run();
+  if (existing.fails || existing.lockouts) {
+    await env.DB.prepare("UPDATE players SET fails = 0, lockouts = 0 WHERE name_key = ?").bind(nameKey).run();
   }
   return json(request, 200, { created: false, token: await makeToken(env, nameKey), player: publicPlayer(existing) });
 }
