@@ -190,7 +190,7 @@
     inset: 0;
     z-index: 10;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: rgba(46, 54, 32, 0.9);
     color: var(--screen);
@@ -203,6 +203,7 @@
 
   .card {
     width: min(340px, 100%);
+    margin: auto 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -304,6 +305,148 @@
   .btn.ghost:active { background: rgba(156, 170, 124, 0.15); }
 
   .btn:focus-visible { outline: 3px solid #f0c75e; outline-offset: 2px; }
+
+  .btn:disabled { opacity: 0.6; }
+
+  .link {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 4px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--screen);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  /* Sign-in form */
+  .form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  .field input {
+    appearance: none;
+    width: 100%;
+    min-height: 48px;
+    border-radius: 10px;
+    border: 2px solid rgba(156, 170, 124, 0.45);
+    background: rgba(156, 170, 124, 0.1);
+    color: #eef2e2;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 18px;
+    padding: 8px 12px;
+    user-select: text;
+    -webkit-user-select: text;
+    touch-action: manipulation;
+  }
+
+  .field input.pin { letter-spacing: 10px; font-size: 22px; }
+
+  .field input:focus { outline: none; border-color: #f0c75e; }
+
+  .error {
+    margin: 0;
+    min-height: 1.2em;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #f2a48f;
+  }
+
+  /* Player + leaderboard */
+  .who {
+    font-size: 12px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .who b {
+    font-family: "Press Start 2P", monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: #eef2e2;
+  }
+
+  .section-title {
+    width: 100%;
+    font-family: "Press Start 2P", monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-align: left;
+    opacity: 0.85;
+  }
+
+  .board-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .board-list li {
+    display: grid;
+    grid-template-columns: 2.2em 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 4px;
+    border-bottom: 1px dashed rgba(156, 170, 124, 0.25);
+    text-align: left;
+  }
+
+  .board-list li.me {
+    background: rgba(240, 199, 94, 0.14);
+    border-radius: 6px;
+  }
+
+  .board-list .rk { opacity: 0.7; font-variant-numeric: tabular-nums; }
+  .board-list .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board-list .nm small { opacity: 0.6; margin-left: 6px; }
+
+  .board-list .sc {
+    font-family: "Press Start 2P", monospace;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-list .empty {
+    display: block;
+    text-align: center;
+    opacity: 0.7;
+    border: none;
+  }
+
+  details.help { width: 100%; text-align: left; }
+
+  details.help summary {
+    cursor: pointer;
+    font-family: "Press Start 2P", monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.85;
+    padding: 4px 0 8px;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .board-wrap.shake { animation: none; }
@@ -453,6 +596,119 @@
 
   var settings = { music: load("pb.music", true), sfx: load("pb.sfx", true) };
   var best = load("pb.best", 0);
+
+  /* =========================================================
+     Online profile + leaderboard
+     ========================================================= */
+  var API = "https://pocket-blocks-api.serge-herman-us.workers.dev/api";
+  var profile = load("pb.profile", null);   // { name, token, player }
+  var guest = false;
+  var pending = load("pb.pending", []);     // scores that failed to upload
+  var boardCache = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+    var init = { method: opts.method || "GET", headers: {} };
+    if (ctrl) init.signal = ctrl.signal;
+    if (opts.body) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(opts.body);
+    }
+    if (opts.token) init.headers["Authorization"] = "Bearer " + opts.token;
+    return fetch(API + path, init).then(function (res) {
+      if (timer) clearTimeout(timer);
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok) {
+          var err = new Error(data.error || "The server couldn't handle that. Try again.");
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      });
+    }, function () {
+      if (timer) clearTimeout(timer);
+      var err = new Error("Can't reach the leaderboard. Check your connection.");
+      err.offline = true;
+      throw err;
+    });
+  }
+
+  function setProfile(p) {
+    profile = p;
+    save("pb.profile", p);
+  }
+
+  function signOut() {
+    setProfile(null);
+    guest = false;
+  }
+
+  function flushPending() {
+    if (!profile || !pending.length) return;
+    var item = pending[0];
+    api("/score", { method: "POST", body: { token: profile.token, score: item.score, level: item.level, lines: item.lines } })
+      .then(function (data) {
+        pending.shift();
+        save("pb.pending", pending);
+        profile.player = data.player;
+        setProfile(profile);
+        flushPending();
+      }, function (err) {
+        if (err.status === 401) { pending = []; save("pb.pending", pending); }
+      });
+  }
+
+  function refreshMe() {
+    if (!profile) return Promise.resolve();
+    return api("/me", { token: profile.token }).then(function (data) {
+      profile.player = data.player;
+      profile.rank = data.rank;
+      setProfile(profile);
+    }, function (err) {
+      if (err.status === 401) signOut();
+    });
+  }
+
+  function fetchBoard() {
+    return api("/leaderboard?limit=10").then(function (data) {
+      boardCache = data.players || [];
+      return boardCache;
+    });
+  }
+
+  function boardHtml(players, errorMsg) {
+    if (errorMsg) return '<ol class="board-list"><li class="empty">' + esc(errorMsg) + "</li></ol>";
+    if (!players) return '<ol class="board-list"><li class="empty">Loading…</li></ol>';
+    if (!players.length) return '<ol class="board-list"><li class="empty">No scores yet. Be the first!</li></ol>';
+    var mine = profile && profile.name ? profile.name.toLowerCase() : "";
+    return '<ol class="board-list">' + players.map(function (p, i) {
+      return '<li class="' + (p.name.toLowerCase() === mine ? "me" : "") + '">' +
+        '<span class="rk">' + (i + 1) + ".</span>" +
+        '<span class="nm">' + esc(p.name) + "<small>LV " + p.best_level + "</small></span>" +
+        '<span class="sc">' + fmt(p.best_score) + "</span></li>";
+    }).join("") + "</ol>";
+  }
+
+  function fillBoard(slotId) {
+    var slot = document.getElementById(slotId);
+    if (!slot) return;
+    slot.innerHTML = boardHtml(boardCache);
+    fetchBoard().then(function (players) {
+      var s = document.getElementById(slotId);
+      if (s) s.innerHTML = boardHtml(players);
+    }, function (err) {
+      var s = document.getElementById(slotId);
+      if (s && !boardCache) s.innerHTML = boardHtml(null, err.message);
+    });
+  }
 
   /* =========================================================
      Elements
@@ -1061,31 +1317,127 @@
     state.mode = "over";
     state.piece = null;
     sndOver();
-    var isBest = state.score > best;
-    if (isBest) { best = state.score; save("pb.best", best); }
-    setTimeout(function () { showGameOver(isBest); }, 450);
+    var result = { score: state.score, level: state.level, lines: state.lines };
+    var isBest = result.score > best;
+    if (isBest) { best = result.score; save("pb.best", best); }
+    var view = { result: result, localBest: isBest, status: profile ? "saving" : "guest" };
+    setTimeout(function () { showGameOver(view); }, 450);
+
+    if (!profile) return;
+    api("/score", { method: "POST", body: { token: profile.token, score: result.score, level: result.level, lines: result.lines } })
+      .then(function (data) {
+        profile.player = data.player;
+        profile.rank = data.rank;
+        setProfile(profile);
+        view.status = "saved";
+        view.newBest = data.new_best;
+        view.rank = data.rank;
+      }, function (err) {
+        if (err.status === 401) { signOut(); view.status = "signedout"; }
+        else { pending.push(result); save("pb.pending", pending); view.status = "queued"; }
+      })
+      .then(function () {
+        setTimeout(function () { if (state.mode === "over") showGameOver(view); }, 460);
+      });
   }
 
   var IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-  function showStart() {
+  var LEGEND =
+    '<ul class="legend">' +
+      "<li><b>Tap</b><span>Rotate</span></li>" +
+      "<li><b>Two-finger tap</b><span>Rotate back</span></li>" +
+      "<li><b>Drag left / right</b><span>Move</span></li>" +
+      "<li><b>Drag down</b><span>Soft drop</span></li>" +
+      "<li><b>Flick down</b><span>Hard drop</span></li>" +
+      "<li><b>Flick up</b><span>Hold</span></li>" +
+      "<li><b>Tap the score bar</b><span>Pause</span></li>" +
+    "</ul>";
+
+  function statsHtml(p, rank) {
+    return "<span>Score</span><b>" + fmt(p.best_score) + "</b>" +
+      "<span>Level</span><b>" + p.best_level + "</b>" +
+      "<span>Lines</span><b>" + p.best_lines + "</b>" +
+      "<span>Games</span><b>" + p.games + "</b>" +
+      (rank ? "<span>Rank</span><b>#" + rank + "</b>" : "");
+  }
+
+  function showSignIn(message, prefill) {
     overlay.innerHTML =
       '<div class="card">' +
         "<h1>POCKET<br>BLOCKS</h1>" +
-        '<ul class="legend">' +
-          "<li><b>Tap</b><span>Rotate</span></li>" +
-          "<li><b>Two-finger tap</b><span>Rotate back</span></li>" +
-          "<li><b>Drag left / right</b><span>Move</span></li>" +
-          "<li><b>Drag down</b><span>Soft drop</span></li>" +
-          "<li><b>Flick down</b><span>Hard drop</span></li>" +
-          "<li><b>Flick up</b><span>Hold</span></li>" +
-          "<li><b>Tap the score bar</b><span>Pause</span></li>" +
-        "</ul>" +
-        (best > 0 ? '<div class="stat-grid"><span>Best</span><b>' + fmt(best) + "</b></div>" : "") +
+        '<p class="note">Pick a name and a 4-digit PIN. New names are created on the spot. Use the same name and PIN on any device to keep your scores.</p>' +
+        '<form class="form" id="signin" novalidate>' +
+          '<div class="field"><label for="pbName">NAME</label>' +
+            '<input id="pbName" name="name" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" value="' + esc(prefill || "") + '"></div>' +
+          '<div class="field"><label for="pbPin">4-DIGIT PIN</label>' +
+            '<input id="pbPin" class="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></div>' +
+          '<p class="error" id="signinError" role="alert">' + esc(message || "") + "</p>" +
+          '<div class="btns">' +
+            '<button class="btn primary" type="submit" id="signinBtn">SIGN IN</button>' +
+            '<button class="btn ghost" type="button" data-cmd="guest">PLAY WITHOUT SAVING</button>' +
+          "</div>" +
+        "</form>" +
+      "</div>";
+    overlay.hidden = false;
+
+    var form = document.getElementById("signin");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = form.elements.name.value.trim();
+      var pin = form.elements.pin.value.trim();
+      var errEl = document.getElementById("signinError");
+      if (name.length < 2) { errEl.textContent = "Enter a name with at least 2 characters."; return; }
+      if (!/^\d{4}$/.test(pin)) { errEl.textContent = "The PIN must be exactly 4 digits."; return; }
+      var btn = document.getElementById("signinBtn");
+      btn.disabled = true;
+      btn.textContent = "SIGNING IN…";
+      errEl.textContent = "";
+      api("/login", { method: "POST", body: { name: name, pin: pin } }).then(function (data) {
+        setProfile({ name: data.player.name, token: data.token, player: data.player });
+        guest = false;
+        flushPending();
+        showStart(data.created ? "Welcome, " + data.player.name + "! Your name is saved." : null);
+      }, function (err) {
+        btn.disabled = false;
+        btn.textContent = "SIGN IN";
+        errEl.textContent = err.message;
+      });
+    });
+  }
+
+  function showStart(welcome) {
+    if (!profile && !guest) { showSignIn(); return; }
+    var seenHelp = load("pb.seenHelp", false);
+    var p = profile && profile.player;
+    overlay.innerHTML =
+      '<div class="card">' +
+        "<h1>POCKET<br>BLOCKS</h1>" +
+        (welcome ? '<p class="note">' + esc(welcome) + "</p>" : "") +
+        '<div class="who">' +
+          (profile
+            ? "<span>Playing as</span><b>" + esc(profile.name) + "</b>"
+            : "<span>Playing without saving</span>") +
+          '<button class="link" data-cmd="switch">' + (profile ? "Switch" : "Sign in") + "</button>" +
+        "</div>" +
         '<div class="btns"><button class="btn primary" data-cmd="start">START</button></div>' +
+        (p
+          ? '<div class="section-title">YOUR BESTS</div><div class="stat-grid" id="myStats">' + statsHtml(p, profile.rank) + "</div>"
+          : (best > 0 ? '<div class="stat-grid"><span>Best on this phone</span><b>' + fmt(best) + "</b></div>" : "")) +
+        '<div class="section-title">TOP 10</div>' +
+        '<div id="startBoard" style="width:100%"></div>' +
+        '<details class="help"' + (seenHelp ? "" : " open") + "><summary>HOW TO PLAY</summary>" + LEGEND + "</details>" +
         (IS_IOS && !navigator.standalone ? '<p class="note">For true full screen, tap Share, then Add to Home Screen.</p>' : "") +
       "</div>";
     overlay.hidden = false;
+    fillBoard("startBoard");
+    if (profile) {
+      refreshMe().then(function () {
+        var el = document.getElementById("myStats");
+        if (el && profile && profile.player) el.innerHTML = statsHtml(profile.player, profile.rank);
+        if (!profile && state.mode === "start") showSignIn("Your sign-in expired. Sign in again.");
+      });
+    }
   }
 
   function showPause() {
@@ -1094,6 +1446,7 @@
         "<h1>PAUSED</h1>" +
         '<div class="btns">' +
           '<button class="btn primary" data-cmd="resume">RESUME</button>' +
+          '<button class="btn ghost" data-cmd="leaderboard">LEADERBOARD</button>' +
           '<button class="btn ghost" data-cmd="music">MUSIC: ' + (settings.music ? "ON" : "OFF") + "</button>" +
           '<button class="btn ghost" data-cmd="sound">SOUND: ' + (settings.sfx ? "ON" : "OFF") + "</button>" +
           '<button class="btn ghost" data-cmd="restart">RESTART</button>' +
@@ -1103,23 +1456,50 @@
     overlay.hidden = false;
   }
 
-  function showGameOver(isBest) {
+  function showLeaderboard() {
+    overlay.innerHTML =
+      '<div class="card">' +
+        "<h1>TOP 10</h1>" +
+        '<div id="pauseBoard" style="width:100%"></div>' +
+        '<div class="btns"><button class="btn primary" data-cmd="backpause">BACK</button></div>' +
+      "</div>";
+    overlay.hidden = false;
+    fillBoard("pauseBoard");
+  }
+
+  function showGameOver(view) {
+    var r = view.result;
+    var statusLine = {
+      saving: "Saving your score…",
+      saved: view.rank ? "Saved. Your best ranks #" + view.rank + " on the leaderboard." : "Score saved.",
+      queued: "Couldn't reach the leaderboard. Your score will upload next time you're online.",
+      signedout: "Your sign-in expired, so this score wasn't saved. Sign in again from the main menu.",
+      guest: "Playing without saving. Sign in from the main menu to get on the leaderboard."
+    }[view.status];
+    var showNewBest = view.status === "saved" ? view.newBest : (view.status !== "saving" && view.localBest);
     overlay.innerHTML =
       '<div class="card">' +
         "<h1>GAME<br>OVER</h1>" +
-        (isBest ? '<div class="new-best">NEW BEST!</div>' : "") +
+        (showNewBest ? '<div class="new-best">NEW BEST!</div>' : "") +
         '<div class="stat-grid">' +
-          "<span>Score</span><b>" + fmt(state.score) + "</b>" +
-          "<span>Lines</span><b>" + state.lines + "</b>" +
-          "<span>Level</span><b>" + state.level + "</b>" +
-          "<span>Best</span><b>" + fmt(best) + "</b>" +
+          "<span>Score</span><b>" + fmt(r.score) + "</b>" +
+          "<span>Lines</span><b>" + r.lines + "</b>" +
+          "<span>Level</span><b>" + r.level + "</b>" +
+          (profile && profile.player
+            ? "<span>Your best</span><b>" + fmt(profile.player.best_score) + "</b>"
+            : "<span>Best on this phone</span><b>" + fmt(best) + "</b>") +
         "</div>" +
+        '<p class="note">' + esc(statusLine) + "</p>" +
         '<div class="btns">' +
           '<button class="btn primary" data-cmd="start">PLAY AGAIN</button>' +
-          '<button class="btn ghost" data-cmd="update">CHECK FOR UPDATE</button>' +
+          '<button class="btn ghost" data-cmd="home">MAIN MENU</button>' +
         "</div>" +
+        '<div class="section-title">TOP 10</div>' +
+        '<div id="overBoard" style="width:100%"></div>' +
       "</div>";
     overlay.hidden = false;
+    if (view.status === "saving") document.getElementById("overBoard").innerHTML = boardHtml(boardCache);
+    else fillBoard("overBoard");
   }
 
   overlay.addEventListener("click", function (e) {
@@ -1127,8 +1507,15 @@
     if (!btn) return;
     ensureAudio();
     switch (btn.getAttribute("data-cmd")) {
-      case "start": case "restart": startGame(); break;
+      case "start": case "restart":
+        save("pb.seenHelp", true);
+        startGame(); break;
       case "resume": resume(); break;
+      case "home": state.mode = "start"; showStart(); break;
+      case "guest": guest = true; showStart(); break;
+      case "switch": signOut(); showSignIn(); break;
+      case "leaderboard": showLeaderboard(); break;
+      case "backpause": showPause(); break;
       case "music":
         settings.music = !settings.music; save("pb.music", settings.music);
         if (musicGain) musicGain.gain.value = settings.music ? 1 : 0;
@@ -1279,6 +1666,7 @@
   state = newState();
   resize();
   showStart();
+  flushPending();
   requestAnimationFrame(frame);
 })();
 </script>

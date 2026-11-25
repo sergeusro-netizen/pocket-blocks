@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pocket-blocks-api",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pocket-blocks",
+      "database_id": "4a00ec7f-ef41-4079-bd4a-cd8dde03a15a"
+    }
+  ]
+}
