@@ -7,6 +7,7 @@
 
 const ALLOWED_ORIGINS = [
   "https://sergeusro-netizen.github.io",
+  "https://games.herman.company",
 ];
 const PBKDF2_ITERATIONS = 100000;
 const MAX_FAILS = 5;
